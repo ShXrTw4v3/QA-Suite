@@ -1,0 +1,30 @@
+# Micro QA + IAEA TRS-398 + Pylinac Radiotherapy QA Suite
+# Install with: pip install -r requirements.txt
+
+# ── Web UI Framework ──────────────────────────────────────────────────────────
+streamlit>=1.32.0
+
+# ── Data Handling & Scientific Computing ──────────────────────────────────────
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+openpyxl>=3.1.0
+
+# ── DICOM & Medical Imaging ───────────────────────────────────────────────────
+pydicom>=2.4.0
+
+# ── PDF Reading & Clinical Certificate Extraction (pypdf) ─────────────────────
+pypdf>=4.0.0
+
+# ── Interactive Charts & Matplotlib Rendering ─────────────────────────────────
+plotly>=5.18.0
+matplotlib>=3.8.0
+
+# ── Radiotherapy Machine QA (pylinac) ─────────────────────────────────────────
+pylinac>=3.20.0
+
+# ── Unified Clinical PDF Report Generation (ReportLab) ────────────────────────
+reportlab>=4.0.0
+
+# ── Automated Validation & Pytest Test Suite ──────────────────────────────────
+pytest>=8.0.0

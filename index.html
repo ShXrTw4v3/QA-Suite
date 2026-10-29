@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRS-398 Absolute Photon Dosimetry | IAEA Code of Practice</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%230284c7'/><circle cx='50' cy='50' r='20' fill='%23ffffff'/><circle cx='50' cy='50' r='8' fill='%230284c7'/></svg>">
+</head>
+<body class="theme-light">
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="6"></circle>
+            <circle cx="12" cy="12" r="2"></circle>
+            <line x1="12" y1="2" x2="12" y2="6"></line>
+            <line x1="12" y1="18" x2="12" y2="22"></line>
+            <line x1="2" y1="12" x2="6" y2="12"></line>
+            <line x1="18" y1="12" x2="22" y2="12"></line>
+          </svg>
+        </div>
+        <div>
+          <h1>IAEA TRS-398 Photon Reference Dosimetry</h1>
+          <p class="subtitle">Absorbed Dose Determination in External Beam Radiotherapy | Flattened & FFF Beams</p>
+        </div>
+      </div>
+
+      <!-- Profile Selector & Management -->
+      <div class="profile-toolbar">
+        <div class="profile-select-wrapper">
+          <label for="profileSelect" class="profile-label">
+            <svg class="icon-svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Active Setup:
+          </label>
+          <select id="profileSelect" class="profile-dropdown" title="Switch between saved machine & chamber configurations">
+            <!-- Dynamically populated from localStorage -->
+          </select>
+        </div>
+
+        <button id="saveProfileBtn" class="btn btn-secondary btn-sm" title="Save current parameters as a new profile">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Profile...
+        </button>
+        <button id="updateProfileBtn" class="btn btn-secondary btn-sm" title="Overwrite active profile with current values">
+          Update Active
+        </button>
+        <button id="deleteProfileBtn" class="btn btn-secondary btn-sm btn-icon-only" title="Delete current profile">
+          🗑️
+        </button>
+      </div>
+
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="btn btn-secondary btn-sm" title="Toggle Light/Dark Theme">
+          <span class="icon" id="themeIcon">🌙</span>
+          <span id="themeText">Dark</span>
+        </button>
+        <button id="presetUserPromptBtn" class="btn btn-primary btn-sm" title="Reload User's Preset (6 MV, PTW 30013, SSD 100, z=10cm, BQI=0.67)">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Reset User Setup
+        </button>
+        <button id="printReportBtn" class="btn btn-accent btn-sm" title="Generate Clinical QA Certificate & Print/PDF">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Clinical Report
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Status Banner of Current Configuration -->
+    <div class="config-ribbon">
+      <div class="ribbon-item">
+        <span class="label">Beam Energy:</span>
+        <span class="value" id="badgeEnergy">6 MV Photons</span>
+      </div>
+      <div class="ribbon-item">
+        <span class="label">Beam Mode:</span>
+        <span class="value badge-mode" id="badgeFffMode">Flattened (W)</span>
+      </div>
+      <div class="ribbon-item">
+        <span class="label">Setup:</span>
+        <span class="value" id="badgeSetup">SSD = 100 cm | z<sub>ref</sub> = 10 cm</span>
+      </div>
+      <div class="ribbon-item">
+        <span class="label">Depth of Max Dose:</span>
+        <span class="value" id="badgeDmax">d<sub>max</sub> = 1.5 cm</span>
+      </div>
+      <div class="ribbon-item">
+        <span class="label">BQI (TPR<sub>20,10</sub>):</span>
+        <span class="value" id="badgeBQI">0.670</span>
+      </div>
+      <div class="ribbon-item">
+        <span class="label">Chamber:</span>
+        <span class="value" id="badgeChamber">PTW 30013 Farmer (0.6 cc)</span>
+      </div>
+      <div class="ribbon-item badge-status" id="badgeOutputStatus">
+        <span class="status-indicator"></span>
+        <span class="status-text" id="badgeOutputText">Ready</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <!-- Left Column: Inputs & Calibration Parameters -->
+    <section class="panel-inputs">
+      
+      <!-- Section 1: Clinical Metadata & Beam Setup -->
+      <div class="card accordion-card" id="cardSetup">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-badge">1</span>
+            <h3>Linac & Irradiation Setup</h3>
+          </div>
+          <div class="header-tags">
+            <span id="fffHeaderBadge" class="tag tag-gray">Conventional W</span>
+            <span class="tag tag-blue">IAEA TRS-398 Sec 6</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="linacId">Linac / Machine ID</label>
+              <input type="text" id="linacId" value="TrueBeam #1 (Clinical Room 1)">
+            </div>
+            <div class="form-group">
+              <label for="physicistName">Medical Physicist</label>
+              <input type="text" id="physicistName" value="Medical Physics Specialist">
+            </div>
+          </div>
+
+          <!-- Beam Mode Switch: Flattened (W) vs FFF (Flattening Filter-Free) -->
+          <div class="beam-mode-selector-box">
+            <div class="beam-mode-label-group">
+              <span class="mode-title">Beam Delivery Mode:</span>
+              <span class="mode-desc">Select conventional flattened beam or high dose-rate flattening filter-free (FFF) beam</span>
+            </div>
+            <div class="segmented-control">
+              <button type="button" id="btnModeFlattened" class="segment-btn active">Conventional (Flattened)</button>
+              <button type="button" id="btnModeFFF" class="segment-btn segment-fff">⚡ Flattening Filter-Free (FFF)</button>
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="nominalEnergy">Nominal Energy</label>
+              <select id="nominalEnergy">
+                <option value="6MV" selected>6 MV</option>
+                <option value="10MV">10 MV</option>
+                <option value="15MV">15 MV</option>
+                <option value="18MV">18 MV</option>
+                <option value="custom">Custom Photon Beam</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="setupType">Setup Geometry</label>
+              <select id="setupType">
+                <option value="SSD" selected>SSD Setup (SSD = 100 cm)</option>
+                <option value="SAD">SAD Setup (SAD = 100 cm)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="fieldSize">Field Size (cm × cm)</label>
+              <input type="text" id="fieldSize" value="10 × 10" readonly>
+            </div>
+          </div>
+
+          <!-- FFF Specific Parameters (Volume Averaging & Dose Rate) -->
+          <div id="fffParamsPanel" class="fff-params-panel hidden">
+            <div class="fff-panel-header">
+              <span class="fff-icon">⚡</span>
+              <h4>Flattening Filter-Free (FFF) Dosimetry Controls</h4>
+              <span class="tag tag-amber">TRS-398 Rev. 1 & IAEA-TECDOC</span>
+            </div>
+            <div class="form-grid-3">
+              <div class="form-group highlight-fff">
+                <label for="kvolInput">
+                  Volume Averaging Correction (k<sub>vol</sub>)
+                  <span class="tooltip" title="Corrects for non-flat conical lateral dose gradient across the chamber cavity length">ⓘ</span>
+                </label>
+                <div class="input-with-unit">
+                  <input type="number" id="kvolInput" value="1.0045" step="0.0001" min="1.000" max="1.020">
+                  <span class="unit">factor</span>
+                </div>
+                <small class="helper-text" id="kvolHelper">PTW 30013 Farmer (23 mm length) ~ 1.0045</small>
+              </div>
+
+              <div class="form-group">
+                <label for="doseRateInput">Linac Dose Rate (MU/min)</label>
+                <div class="input-with-unit">
+                  <input type="number" id="doseRateInput" value="1400" step="100" min="100" max="3000">
+                  <span class="unit">MU/min</span>
+                </div>
+                <small class="helper-text">Standard 6 FFF = 1400, 10 FFF = 2400</small>
+              </div>
+
+              <div class="form-group dose-pulse-card">
+                <span class="dpp-label">Estimated Dose Per Pulse (DPP):</span>
+                <span class="dpp-value" id="dppValueText">0.648 mGy/pulse</span>
+                <small class="dpp-sub">PRF = 360 Hz (3× higher than flattened)</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group highlight-group">
+              <label for="bqiTpr">BQI: TPR<sub>20,10</sub> <span class="tooltip" title="Tissue-Phantom Ratio at depths 20 cm and 10 cm in water for 10x10 cm field">ⓘ</span></label>
+              <input type="number" id="bqiTpr" value="0.670" step="0.001" min="0.50" max="0.84">
+              <small class="helper-text" id="bqiHelper">TRS-398 6 MV benchmark</small>
+            </div>
+            <div class="form-group highlight-group">
+              <label for="zrefDepth">Reference Depth z<sub>ref</sub> (cm)</label>
+              <input type="number" id="zrefDepth" value="10.0" step="0.1" min="1.0" max="25.0">
+              <small class="helper-text">Water phantom measurement</small>
+            </div>
+            <div class="form-group highlight-group">
+              <label for="dmaxDepth">Depth of Max Dose d<sub>max</sub> (cm)</label>
+              <input type="number" id="dmaxDepth" value="1.5" step="0.1" min="0.5" max="5.0">
+              <small class="helper-text" id="dmaxHelper">TRS-398 Table 11: 1.5 cm for 6 MV</small>
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="pddZref">PDD at z<sub>ref</sub> = 10 cm (%) <span class="tooltip" title="Percentage Depth Dose at reference depth for 10x10 field at SSD 100 cm">ⓘ</span></label>
+              <input type="number" id="pddZref" value="67.0" step="0.1" min="40.0" max="90.0">
+              <small class="helper-text">Used to transfer dose to d<sub>max</sub></small>
+            </div>
+            <div class="form-group">
+              <label for="muDelivered">Monitor Units (MU)</label>
+              <input type="number" id="muDelivered" value="100.0" step="1" min="1" max="1000">
+              <small class="helper-text">Per irradiation reading</small>
+            </div>
+            <div class="form-group">
+              <label for="targetDosePerMu">Nominal Calibration Target</label>
+              <div class="input-with-unit">
+                <input type="number" id="targetDosePerMu" value="1.000" step="0.001">
+                <span class="unit">cGy/MU</span>
+              </div>
+              <small class="helper-text">Reference at d<sub>max</sub></small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Dosimetry Equipment & Calibration Certificate -->
+      <div class="card accordion-card" id="cardDosimeter">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-badge">2</span>
+            <h3>Ionization Chamber & Calibration Factor (N<sub>D,w</sub>)</h3>
+          </div>
+          <span class="tag tag-green">SSDL / PSDL Data</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="chamberSelect">Ionization Chamber Model (TRS-398 Rev. 1 Table 16)</label>
+              <select id="chamberSelect">
+                <!-- Grouped standard cylindrical chambers from TRS-398 Rev. 1 Table 16 -->
+                <optgroup label="PTW Farmer Chambers (Standard Reference)">
+                  <option value="PTW 30013 Farmer (0.60 cm³, waterproof)" selected>PTW 30013 Farmer (0.60 cm³, waterproof)</option>
+                  <option value="PTW 30010 Farmer (0.60 cm³, classic)">PTW 30010 Farmer (0.60 cm³, classic)</option>
+                  <option value="PTW 30011 Farmer (0.60 cm³)">PTW 30011 Farmer (0.60 cm³)</option>
+                  <option value="PTW 30012 Farmer (0.60 cm³)">PTW 30012 Farmer (0.60 cm³)</option>
+                </optgroup>
+                <optgroup label="PTW Semiflex Chambers (Ideal for FFF Beams)">
+                  <option value="PTW 31010 Semiflex (0.125 cm³)">PTW 31010 Semiflex (0.125 cm³, cavity 6.5 mm)</option>
+                  <option value="PTW 31013 Semiflex (0.30 cm³)">PTW 31013 Semiflex (0.30 cm³, cavity 16.3 mm)</option>
+                  <option value="PTW 31021 Semiflex 3D (0.07 cm³)">PTW 31021 Semiflex 3D (0.07 cm³, cavity 4.8 mm)</option>
+                </optgroup>
+                <optgroup label="IBA / NE / Exradin Reference Cylindrical Chambers">
+                  <option value="IBA / Wellhöfer FC65-G (0.65 cm³)">IBA FC65-G (0.65 cm³)</option>
+                  <option value="IBA FC65-P Farmer (0.65 cm³)">IBA FC65-P Farmer (0.65 cm³)</option>
+                  <option value="IBA CC13 (0.13 cm³)">IBA CC13 (0.13 cm³)</option>
+                  <option value="NE 2571 Farmer (0.60 cm³)">NE 2571 Farmer (0.60 cm³)</option>
+                  <option value="Exradin A12 Farmer (0.64 cm³)">Exradin A12 Farmer (0.64 cm³)</option>
+                  <option value="Exradin A19 Classic Farmer (0.62 cm³)">Exradin A19 Classic Farmer (0.62 cm³)</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="chamberSn">Chamber Serial Number</label>
+              <input type="text" id="chamberSn" value="PTW-30013-10482">
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group highlight-group">
+              <label for="ndwValue">Calibration Factor N<sub>D,w,Q0</sub> (<sup>60</sup>Co)</label>
+              <div class="input-with-unit">
+                <input type="number" id="ndwValue" value="53.85" step="0.01">
+                <select id="ndwUnit" class="unit-select">
+                  <option value="mGy/nC" selected>mGy/nC</option>
+                  <option value="Gy/nC">Gy/nC</option>
+                  <option value="cGy/nC">cGy/nC</option>
+                  <option value="Gy/rdg">Gy/rdg</option>
+                </select>
+              </div>
+              <small class="helper-text" id="ndwConvertedHelper">= 0.053850 Gy/nC</small>
+            </div>
+            <div class="form-group">
+              <label for="kelec">Electrometer Factor k<sub>elec</sub></label>
+              <input type="number" id="kelec" value="1.0000" step="0.0001" min="0.900" max="1.100">
+              <small class="helper-text">1.0000 if calibrated together</small>
+            </div>
+            <div class="form-group">
+              <label for="calLab">Calibration Lab & Date</label>
+              <input type="text" id="calLab" value="PTW SSDL (2025-06-12)">
+            </div>
+          </div>
+
+          <!-- Reference environmental conditions according to certificate -->
+          <div class="reference-env-row">
+            <span class="ref-tag">Certificate Reference Conditions:</span>
+            <span>T<sub>0</sub> = <input type="number" id="refTemp" value="20.0" step="0.1" class="mini-input"> °C</span>
+            <span>P<sub>0</sub> = <input type="number" id="refPress" value="101.325" step="0.001" class="mini-input"> kPa (1013.25 hPa / 760 mmHg)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Influence Quantities (kTP, kpol, ks) -->
+      <div class="card accordion-card" id="cardCorrections">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-badge">3</span>
+            <h3>Influence Quantity Corrections</h3>
+          </div>
+          <span class="tag tag-purple">k<sub>TP</sub> · k<sub>pol</sub> · k<sub>s</sub></span>
+        </div>
+        <div class="card-body">
+          
+          <!-- Sub-panel A: Temperature & Pressure (k_TP) -->
+          <div class="correction-subpanel">
+            <div class="subpanel-header">
+              <h4>1. Air Density Correction (k<sub>TP</sub>)</h4>
+              <span class="factor-pill" id="pillKtp">k<sub>TP</sub> = 1.0000</span>
+            </div>
+            <div class="form-grid-3">
+              <div class="form-group">
+                <label for="tempInput">Water/Room Temp (T)</label>
+                <div class="input-with-unit">
+                  <input type="number" id="tempInput" value="20.0" step="0.1">
+                  <select id="tempUnit" class="unit-select">
+                    <option value="C" selected>°C</option>
+                    <option value="F">°F</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="pressInput">Ambient Pressure (P)</label>
+                <div class="input-with-unit">
+                  <input type="number" id="pressInput" value="101.325" step="0.01">
+                  <select id="pressUnit" class="unit-select">
+                    <option value="kPa" selected>kPa</option>
+                    <option value="hPa">hPa / mbar</option>
+                    <option value="mmHg">mmHg / Torr</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group formula-display-box">
+                <span class="formula-label">TRS-398 Rev. 1 Eq (10):</span>
+                <span class="formula-math" id="mathKtp">k<sub>TP</sub> = ((273.15 + 20.0)/(273.15 + 20.0)) × (101.325 / 101.325) = 1.0000</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub-panel B: Polarity Correction (k_pol) -->
+          <div class="correction-subpanel">
+            <div class="subpanel-header">
+              <h4>2. Polarity Effect (k<sub>pol</sub>)</h4>
+              <span class="factor-pill" id="pillKpol">k<sub>pol</sub> = 1.0000</span>
+            </div>
+            <div class="form-grid-3">
+              <div class="form-group">
+                <label for="mPlus">Reading at +Bias (M<sub>+</sub>)</label>
+                <div class="input-with-unit">
+                  <input type="number" id="mPlus" value="12.35" step="0.01">
+                  <span class="unit">nC</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="mMinus">Reading at -Bias (M<sub>-</sub>)</label>
+                <div class="input-with-unit">
+                  <input type="number" id="mMinus" value="12.35" step="0.01">
+                  <span class="unit">nC</span>
+                </div>
+              </div>
+              <div class="form-group formula-display-box">
+                <span class="formula-label">TRS-398 Eq (4.5):</span>
+                <span class="formula-math" id="mathKpol">k<sub>pol</sub> = (|12.35| + |12.35|) / (2 × 12.35) = 1.0000</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub-panel C: Ion Recombination (k_s) -->
+          <div class="correction-subpanel">
+            <div class="subpanel-header">
+              <h4>3. Ion Recombination (k<sub>s</sub>) — Pulsed Linac Beam</h4>
+              <div class="ks-badge-group">
+                <span id="fffKsWarningBadge" class="tag tag-amber hidden">High FFF DPP</span>
+                <span class="factor-pill" id="pillKs">k<sub>s</sub> = 1.0028</span>
+              </div>
+            </div>
+            <div class="form-grid-4">
+              <div class="form-group">
+                <label for="v1Voltage">Normal Voltage V<sub>1</sub></label>
+                <div class="input-with-unit">
+                  <input type="number" id="v1Voltage" value="300" step="10">
+                  <span class="unit">V</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="m1Reading">Reading M<sub>1</sub> at V<sub>1</sub></label>
+                <div class="input-with-unit">
+                  <input type="number" id="m1Reading" value="12.35" step="0.01">
+                  <span class="unit">nC</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="v2Voltage">Reduced Voltage V<sub>2</sub></label>
+                <div class="input-with-unit">
+                  <input type="number" id="v2Voltage" value="100" step="10">
+                  <span class="unit">V</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="m2Reading">Reading M<sub>2</sub> at V<sub>2</sub></label>
+                <div class="input-with-unit">
+                  <input type="number" id="m2Reading" value="12.28" step="0.01">
+                  <span class="unit">nC</span>
+                </div>
+              </div>
+            </div>
+            <div class="recomb-calc-details">
+              <span id="recombMethodText">Method: TRS-398 Table 9 quadratic fit (V<sub>1</sub>/V<sub>2</sub> = 3.0)</span>
+              <span class="recomb-ratio" id="recombRatioText">M<sub>1</sub>/M<sub>2</sub> = 1.0057</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Section 4: Raw Electrometer Readings (M_raw) -->
+      <div class="card accordion-card" id="cardReadings">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-badge">4</span>
+            <h3>Electrometer Raw Readings (M<sub>raw</sub>)</h3>
+          </div>
+          <span class="tag tag-orange">Irradiations Table</span>
+        </div>
+        <div class="card-body">
+          <div class="readings-table-container">
+            <table class="table-readings" id="readingsTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Irradiation MU</th>
+                  <th>Reading (nC)</th>
+                  <th>Deviation (%)</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="readingsBody">
+                <!-- Dynamically filled by JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="readings-toolbar">
+            <button id="addReadingBtn" class="btn btn-secondary btn-sm">+ Add Measurement</button>
+            <button id="quickFillBtn" class="btn btn-secondary btn-sm">Reset Sample Readings</button>
+            <div class="readings-stats">
+              <span class="stat-item">Mean M̄<sub>raw</sub>: <strong id="meanRawText">12.347 nC</strong></span>
+              <span class="stat-item">Std Dev (σ): <strong id="sdRawText">0.0058 nC</strong></span>
+              <span class="stat-item">CV%: <strong id="cvRawText" class="badge-cv-pass">0.05%</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Right Column: Live Clinical Results Dashboard & Visuals -->
+    <section class="panel-results">
+      
+      <!-- Primary Clinical Result Card -->
+      <div class="card result-card-primary">
+        <div class="result-header">
+          <div>
+            <span class="result-supertitle" id="resultHeaderMode">IAEA TRS-398 DETERMINATION RESULT (CONVENTIONAL W)</span>
+            <h2 class="result-main-title">Dose at Reference & Maximum Depth</h2>
+          </div>
+          <div class="tolerance-badge-container">
+            <div class="tolerance-badge badge-pass" id="toleranceBadge">
+              <span class="indicator-dot"></span>
+              <span id="toleranceBadgeText">IN CLINICAL TOLERANCE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Big KPI Grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card highlight-kpi">
+            <span class="kpi-label">Absorbed Dose at d<sub>max</sub> (1.5 cm)</span>
+            <div class="kpi-value-row">
+              <span class="kpi-value" id="kpiDoseDmaxCgy">98.56</span>
+              <span class="kpi-unit">cGy</span>
+            </div>
+            <span class="kpi-sub" id="kpiDoseDmaxGy">0.9856 Gy for 100 MU</span>
+          </div>
+
+          <div class="kpi-card highlight-kpi-cyan">
+            <span class="kpi-label">Linac Output (at d<sub>max</sub>)</span>
+            <div class="kpi-value-row">
+              <span class="kpi-value" id="kpiDosePerMu">0.9856</span>
+              <span class="kpi-unit">cGy/MU</span>
+            </div>
+            <span class="kpi-sub" id="kpiTargetComparison">Target: 1.0000 cGy/MU</span>
+          </div>
+
+          <div class="kpi-card">
+            <span class="kpi-label">Output Deviation (Δ)</span>
+            <div class="kpi-value-row">
+              <span class="kpi-value text-deviation" id="kpiDeviation">-1.44%</span>
+            </div>
+            <span class="kpi-sub" id="kpiDeviationTolerance">Tolerance: ±1.0% (Action: ±2.0%)</span>
+          </div>
+
+          <div class="kpi-card">
+            <span class="kpi-label">Recommended Linac Adjustment</span>
+            <div class="kpi-value-row">
+              <span class="kpi-value text-adj" id="kpiAdjustment">+1.46%</span>
+            </div>
+            <span class="kpi-sub">MU potentiometer / gain trim</span>
+          </div>
+        </div>
+
+        <!-- Secondary Depth Breakdown -->
+        <div class="secondary-results-row">
+          <div class="sec-item">
+            <span class="sec-label">Reference Depth Dose D<sub>w,Q</sub>(10 cm):</span>
+            <span class="sec-val" id="secDoseZref">66.04 cGy (0.6604 Gy)</span>
+          </div>
+          <div class="sec-item">
+            <span class="sec-label">Reference Dose Output (z<sub>ref</sub>):</span>
+            <span class="sec-val" id="secDosePerMuZref">0.6604 cGy/MU</span>
+          </div>
+          <div class="sec-item">
+            <span class="sec-label" id="secPddRatioLabel">PDD Transfer (100 / PDD<sub>10</sub>):</span>
+            <span class="sec-val" id="secPddRatio">100 / 67.0 = 1.4925</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Measurement Setup Schematic & Beam Profile Diagram -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            <h3>TRS-398 Physical Geometry & Beam Profile</h3>
+          </div>
+          <span class="tag tag-blue" id="schematicBadge">SSD = 100 cm | z<sub>ref</sub> = 10 cm</span>
+        </div>
+        <div class="card-body">
+          <div class="schematic-container">
+            <svg id="schematicSvg" viewBox="0 0 540 290" class="schematic-svg">
+              <!-- Rendered dynamically via JS to show flat vs peaked FFF profile -->
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step-by-Step Formal Mathematical Calculation Chain -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <h3>IAEA TRS-398 Mathematical Derivation Chain</h3>
+          </div>
+          <span class="tag tag-green">Full Traceability</span>
+        </div>
+        <div class="card-body">
+          <div class="math-steps-list">
+            
+            <div class="math-step-item">
+              <div class="step-num-circle">1</div>
+              <div class="step-content">
+                <div class="step-title">Fully Corrected Reading (M<sub>Q</sub>)</div>
+                <div class="step-equation">M<sub>Q</sub> = M̄<sub>raw</sub> × k<sub>TP</sub> × k<sub>pol</sub> × k<sub>s</sub> × k<sub>elec</sub></div>
+                <div class="step-substitution" id="calcSubMq">
+                  M<sub>Q</sub> = 12.347 nC × 1.0000 × 1.0000 × 1.0028 × 1.0000 = <strong>12.3812 nC</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="math-step-item">
+              <div class="step-num-circle">2</div>
+              <div class="step-content">
+                <div class="step-title">Beam Quality Factor k<sub>Q,Q0</sub> (TRS-398 Rev. 1 Table 16 / Eq. 34)</div>
+                <div class="step-equation" id="calcEqKq">k<sub>Q</sub> = f(TPR<sub>20,10</sub> = 0.670, PTW 30013)</div>
+                <div class="step-substitution" id="calcSubKq">
+                  k<sub>Q</sub> interpolated between 0.65 (0.9920) and 0.68 (0.9876) = <strong>0.9891</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- FFF Step 2b: Volume Averaging (Only shown when FFF is on) -->
+            <div class="math-step-item" id="mathStepKvol">
+              <div class="step-num-circle">3</div>
+              <div class="step-content">
+                <div class="step-title">Dose to Water at Reference Depth z<sub>ref</sub> = 10 cm</div>
+                <div class="step-equation" id="calcEqDoseZref">D<sub>w,Q</sub>(z<sub>ref</sub>) = M<sub>Q</sub> × N<sub>D,w,Q0</sub> × k<sub>Q</sub></div>
+                <div class="step-substitution" id="calcSubDoseZref">
+                  D<sub>w,Q</sub>(10 cm) = 12.3812 nC × 0.05385 Gy/nC × 0.9913 = <strong>0.6609 Gy (66.09 cGy)</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="math-step-item">
+              <div class="step-num-circle">4</div>
+              <div class="step-content">
+                <div class="step-title">Dose Transfer to Depth of Max Dose d<sub>max</sub> = 1.5 cm</div>
+                <div class="step-equation">D<sub>w,Q</sub>(z<sub>max</sub>) = D<sub>w,Q</sub>(z<sub>ref</sub>) × (100 / PDD(z<sub>ref</sub>))</div>
+                <div class="step-substitution" id="calcSubDoseDmax">
+                  D<sub>w,Q</sub>(1.5 cm) = 0.6609 Gy × (100 / 67.0) = <strong>0.9865 Gy (98.65 cGy)</strong>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Beam Quality Curve & Table 16 Inspector -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <h3>Beam Quality Correction Factor (k<sub>Q</sub> vs TPR<sub>20,10</sub>)</h3>
+          </div>
+          <button id="toggleTableBtn" class="btn btn-secondary btn-xs">View Table 16</button>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <svg id="kqChartSvg" viewBox="0 0 540 220" class="kq-chart-svg">
+              <!-- Rendered dynamically via JS -->
+            </svg>
+          </div>
+
+          <div id="tableContainer" class="table-container hidden">
+            <h4 class="table-heading">IAEA TRS-398 Rev. 1 (2024) Table 16: Tabulated k<sub>Q</sub> for High-Energy Photons</h4>
+            <div class="scrollable-table">
+              <table class="table-trs" id="tblTrs63">
+                <!-- Dynamically populated -->
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Footer Buttons -->
+      <div class="action-footer">
+        <button id="exportCsvBtn" class="btn btn-secondary">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Export CSV Log
+        </button>
+        <button id="exportJsonBtn" class="btn btn-secondary">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 16v1a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h8a2 2 0 012 2v1M12 12h9m0 0l-3-3m3 3l-3 3"/></svg>
+          Save Session JSON
+        </button>
+        <button id="exportProfilesBtn" class="btn btn-secondary">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          Backup Profiles
+        </button>
+        <button id="importProfilesBtn" class="btn btn-secondary">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Restore Profiles
+        </button>
+        <input type="file" id="importFileInput" accept=".json" class="hidden">
+        <button id="copySummaryBtn" class="btn btn-secondary">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy Summary
+        </button>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Save New Profile Modal -->
+  <div id="saveProfileModal" class="modal-overlay hidden">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h3>Save Linac & Machine Profile</h3>
+        <button id="closeSaveProfileModal" class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-instruction">Save the current configuration (Machine ID, Energy, FFF Mode, Chamber, S/N, N<sub>D,w</sub>, PDD, and Voltages) as a reusable profile.</p>
+        <div class="form-group">
+          <label for="newProfileName">Profile Name</label>
+          <input type="text" id="newProfileName" placeholder="e.g. TrueBeam #1 - 6 MV FFF">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="confirmSaveProfileBtn" class="btn btn-primary">Save Profile</button>
+        <button id="cancelSaveProfileBtn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formal Clinical Report Print Modal / Printable View -->
+  <div id="reportModal" class="modal-overlay hidden">
+    <div class="modal-card printable-report">
+      <div class="modal-header-actions no-print">
+        <button id="doPrintBtn" class="btn btn-accent btn-sm">🖨️ Print / Save as PDF</button>
+        <button id="closeReportBtn" class="btn btn-secondary btn-sm">Close</button>
+      </div>
+
+      <div class="report-paper">
+        <div class="report-header">
+          <div class="report-logo">
+            <svg width="48" height="48" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#0284c7"/><circle cx="50" cy="50" r="22" fill="#fff"/><circle cx="50" cy="50" r="8" fill="#0284c7"/></svg>
+          </div>
+          <div class="report-header-text">
+            <h2>IAEA TRS-398 DOSIMETRY CALIBRATION CERTIFICATE</h2>
+            <h3>Absorbed Dose Determination in External Beam Radiotherapy (High-Energy Photon Beams)</h3>
+            <p class="report-sub">Section 6 Worksheet: Reference Dosimetry in Water Phantom</p>
+          </div>
+        </div>
+
+        <hr class="report-divider">
+
+        <div class="report-grid-2">
+          <div class="report-block">
+            <h4>1. Clinical Institution & Machine</h4>
+            <table class="report-data-table">
+              <tr><td>Institution:</td><td>Radiation Oncology Physics Department</td></tr>
+              <tr><td>Linac Unit:</td><td id="rptLinac">-</td></tr>
+              <tr><td>Nominal Energy:</td><td id="rptEnergy">6 MV Photons</td></tr>
+              <tr><td>Beam Mode:</td><td id="rptBeamMode">Conventional Flattened (W)</td></tr>
+              <tr><td>Medical Physicist:</td><td id="rptPhysicist">-</td></tr>
+              <tr><td>Date & Time:</td><td id="rptDateTime">-</td></tr>
+            </table>
+          </div>
+
+          <div class="report-block">
+            <h4>2. Dosimetry Equipment</h4>
+            <table class="report-data-table">
+              <tr><td>Ionization Chamber:</td><td id="rptChamber">-</td></tr>
+              <tr><td>Chamber Serial No:</td><td id="rptChamberSn">-</td></tr>
+              <tr><td>Cal. Factor N<sub>D,w,Q0</sub>:</td><td id="rptNdw">-</td></tr>
+              <tr><td>Electrometer Factor k<sub>elec</sub>:</td><td id="rptKelec">-</td></tr>
+              <tr><td>Cal. Laboratory:</td><td id="rptCalLab">-</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="report-grid-2">
+          <div class="report-block">
+            <h4>3. Irradiation & Reference Geometry</h4>
+            <table class="report-data-table">
+              <tr><td>Setup Geometry:</td><td>SSD = 100.0 cm</td></tr>
+              <tr><td>Field Size:</td><td>10 cm × 10 cm at water surface</td></tr>
+              <tr><td>Reference Depth (z<sub>ref</sub>):</td><td>10.0 cm in water phantom</td></tr>
+              <tr><td>Depth of Dose Max (d<sub>max</sub>):</td><td id="rptDmaxDepth">1.5 cm</td></tr>
+              <tr><td>Beam Quality Index (TPR<sub>20,10</sub>):</td><td id="rptBQI">0.670</td></tr>
+              <tr><td>PDD at Reference Depth (z<sub>ref</sub>):</td><td id="rptPdd">67.0%</td></tr>
+              <tr><td>Beam Quality Factor (k<sub>Q,Q0</sub>):</td><td id="rptKq">0.9913 (TRS-398 Table 6.III)</td></tr>
+              <tr id="rptKvolRow"><td>Volume Averaging (k<sub>vol</sub>):</td><td id="rptKvol">1.0000</td></tr>
+            </table>
+          </div>
+
+          <div class="report-block">
+            <h4>4. Influence Quantities & Corrections</h4>
+            <table class="report-data-table">
+              <tr><td>Temperature (T) / Pressure (P):</td><td id="rptTP">-</td></tr>
+              <tr><td>Pressure-Temp Factor (k<sub>TP</sub>):</td><td id="rptKtp">-</td></tr>
+              <tr><td>Polarity Factor (k<sub>pol</sub>):</td><td id="rptKpol">-</td></tr>
+              <tr><td>Recombination Factor (k<sub>s</sub>):</td><td id="rptKs">-</td></tr>
+              <tr><td>Total Correction Factor (k<sub>tot</sub>):</td><td id="rptKtot">-</td></tr>
+              <tr><td>Mean Raw Reading (M̄<sub>raw</sub>):</td><td id="rptMeanRaw">-</td></tr>
+              <tr><td>Fully Corrected Reading (M<sub>Q</sub>):</td><td id="rptMq">-</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="report-block full-width">
+          <h4>5. Absorbed Dose Determination to Water</h4>
+          <table class="report-results-table">
+            <thead>
+              <tr>
+                <th>Measurement Point</th>
+                <th>Depth</th>
+                <th>Delivered MU</th>
+                <th>Absorbed Dose (Gy)</th>
+                <th>Absorbed Dose (cGy)</th>
+                <th>Dose Output</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Reference Depth (z<sub>ref</sub>)</strong></td>
+                <td>10.0 cm</td>
+                <td id="rptMu1">100 MU</td>
+                <td id="rptDoseZrefGy">-</td>
+                <td id="rptDoseZrefCgy">-</td>
+                <td id="rptDosePerMuZref">-</td>
+              </tr>
+              <tr class="highlight-row">
+                <td><strong>Dose Maximum (d<sub>max</sub>)</strong></td>
+                <td id="rptDmaxCol">1.5 cm</td>
+                <td id="rptMu2">100 MU</td>
+                <td id="rptDoseDmaxGy"><strong>-</strong></td>
+                <td id="rptDoseDmaxCgy"><strong>-</strong></td>
+                <td id="rptDosePerMuDmax"><strong>-</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-grid-2">
+          <div class="report-block">
+            <h4>6. Output Verification & Machine Calibration</h4>
+            <table class="report-data-table">
+              <tr><td>Target Calibration Output:</td><td id="rptTargetOutput">1.000 cGy/MU at d<sub>max</sub></td></tr>
+              <tr><td>Measured Output at d<sub>max</sub>:</td><td id="rptMeasuredOutput">-</td></tr>
+              <tr><td>Output Deviation (Δ%):</td><td id="rptDiffPct">-</td></tr>
+              <tr><td>Clinical Compliance:</td><td id="rptCompliance"><strong class="text-pass">PASS (Within ±1.0%)</strong></td></tr>
+              <tr><td>Recommended Adjustment:</td><td id="rptAdjustment">-</td></tr>
+            </table>
+          </div>
+
+          <div class="report-block signatures-block">
+            <h4>7. Clinical Signatures & Authorization</h4>
+            <div class="signature-line-row">
+              <div class="sig-col">
+                <div class="sig-space"></div>
+                <div class="sig-line"></div>
+                <p>Performed by: Medical Physicist</p>
+              </div>
+              <div class="sig-col">
+                <div class="sig-space"></div>
+                <div class="sig-line"></div>
+                <p>Verified by: Chief Medical Physicist</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-footer-note">
+          Calculation verified strictly in accordance with IAEA Technical Reports Series No. 398 (Absorbed Dose Determination in External Beam Radiotherapy).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
