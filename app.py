@@ -40,6 +40,7 @@ from crud import (
     add_ion_chamber, get_ion_chambers, delete_ion_chamber,
     add_unit_energy, get_unit_energies, delete_unit_energy,
     save_reference_beam_data, get_reference_beam_data, delete_reference_beam_data, get_reference_beam_by_id,
+    export_database_sql, dump_database_to_file,
 )
 
 # Chamber & Certificate Parser
@@ -701,11 +702,12 @@ def page_service_log():
 def page_admin():
     st.markdown('<div class="section-header">⚙️ Equipment, Linacs & System Admin</div>', unsafe_allow_html=True)
 
-    tab_linacs, tab_chambers, tab_tests, tab_assign = st.tabs([
+    tab_linacs, tab_chambers, tab_tests, tab_assign, tab_db = st.tabs([
         "🏭 Linacs & Golden Beam Data",
         "☢️ Ion Chambers & Certificates",
         "🧪 Manage Tests",
         "🔗 Assign Tests to Units",
+        "💾 Database Export & Backup",
     ])
 
     # ── Tab 1: Linacs & Golden Beam Data ──────────────────────────────────
@@ -719,7 +721,29 @@ def page_admin():
 
         units_df = get_units()
         if units_df.empty:
-            st.warning("No treatment units registered in database yet. Add your first unit below.")
+            st.info("👋 Welcome! No treatment units are registered in the database yet. Register your clinic's treatment machine below to get started.")
+
+            with st.form("add_first_unit_form", clear_on_submit=True):
+                st.markdown("##### ➕ Register Treatment Unit")
+                u1, u2 = st.columns(2)
+                with u1:
+                    new_name = st.text_input("Unit Name *", value="Varian TrueBeam", placeholder="e.g. Varian TrueBeam / Edge / Halcyon")
+                    new_modality = st.selectbox("Modality *", ["LINAC", "CT", "MRI", "PET/CT", "Cobalt", "kV Imaging", "Other"])
+                    new_mfr = st.text_input("Manufacturer", value="Varian", placeholder="e.g. Varian / Elekta")
+                    new_model = st.text_input("Model", value="TrueBeam", placeholder="e.g. TrueBeam / Edge / Halcyon")
+                with u2:
+                    new_serial = st.text_input("Serial Number", placeholder="e.g. H191234")
+                    new_location = st.text_input("Location", placeholder="e.g. Vault 1")
+                    new_notes = st.text_area("Notes", placeholder="Primary clinical photon/electron linac", height=80)
+                submit_first_unit = st.form_submit_button("➕ Register Treatment Unit", use_container_width=True, type="primary")
+
+            if submit_first_unit:
+                if not new_name.strip():
+                    st.error("Unit Name is required.")
+                else:
+                    add_unit(new_name.strip(), new_modality, new_mfr, new_model, new_serial, new_location, new_notes)
+                    st.success(f"✅ Unit **{new_name}** added successfully.")
+                    st.rerun()
         else:
             col_sel, col_info = st.columns([1, 2])
             with col_sel:
@@ -787,9 +811,136 @@ def page_admin():
                 "and stores them as the official golden baseline in `qa_data.db`."
             )
 
+            # Option A: Folder Importer
+            with st.expander("📁 Batch Import Golden Beam Data from Local / Google Drive Folder", expanded=False):
+                st.caption(
+                    "Automatically scan, parse, and register all Varian W2CAD / water tank profiles and PDD curves "
+                    "from a local directory or mounted Google Drive into this unit's database."
+                )
+                target_folder = st.text_input(
+                    "Folder Path",
+                    value=os.environ.get("BEAM_DATA_DIR", ""),
+                    placeholder="e.g. /path/to/BeamData or C:/Data/BeamData",
+                    key=f"folder_import_{sel_unit_id}"
+                )
+
+                if st.button("🚀 Import All Golden Data from Folder", key=f"btn_import_folder_{sel_unit_id}", type="primary"):
+                    if not target_folder.strip() or not os.path.isdir(target_folder.strip()):
+                        st.error(f"Directory not found: `{target_folder}`")
+                    else:
+                        dir_path = target_folder.strip()
+                        raw_files = [f for f in sorted(os.listdir(dir_path)) if not f.endswith(".gdoc") and not f.startswith(".")]
+                        if not raw_files:
+                            st.warning(f"No files found in `{dir_path}`.")
+                        else:
+                            imported_pdds = []
+                            imported_profs = []
+                            progress_bar = st.progress(0.0)
+
+                            for idx, fname in enumerate(raw_files):
+                                fpath = os.path.join(dir_path, fname)
+                                if os.path.isdir(fpath):
+                                    continue
+                                try:
+                                    parsed = bpa.parse_profile_file(fpath)
+                                    if not parsed or "profiles" not in parsed:
+                                        continue
+                                    for s_name, s_data in parsed["profiles"].items():
+                                        c_x = np.asarray(s_data["x_mm"], dtype=float)
+                                        c_y = np.asarray(s_data["values"], dtype=float)
+                                        s_meta = s_data.get("meta", {})
+                                        is_pdd_flag = s_meta.get("is_pdd", False) or "PDD" in s_name.upper()
+                                        e_str = s_meta.get("energy", "6 MV")
+                                        is_fff_flag = s_meta.get("is_fff", False)
+                                        beam_type_str = "FFF" if is_fff_flag else "Flattened"
+
+                                        if "6" in e_str and is_fff_flag:
+                                            e_code = "6FFF"
+                                            nom_mv = 6.0
+                                        elif "6" in e_str:
+                                            e_code = "6X"
+                                            nom_mv = 6.0
+                                        elif "10" in e_str and is_fff_flag:
+                                            e_code = "10FFF"
+                                            nom_mv = 10.0
+                                        elif "10" in e_str:
+                                            e_code = "10X"
+                                            nom_mv = 10.0
+                                        elif "15" in e_str:
+                                            e_code = "15X"
+                                            nom_mv = 15.0
+                                        else:
+                                            e_code = e_str
+                                            nom_mv = 6.0
+
+                                        flsz_nom = s_meta.get("field_size_nominal", "100x100 mm")
+                                        c_json = json.dumps({"x_mm": c_x.tolist(), "values": c_y.tolist()})
+
+                                        if is_pdd_flag:
+                                            pdd_calc = bpa.analyze_pdd_curve(c_x, c_y)
+                                            dmx = pdd_calc["d_max_mm"]
+                                            t_idx = pdd_calc["tpr20_10"]
+                                            p_10 = pdd_calc["pdd_10"]
+                                            p_20 = pdd_calc["pdd_20"]
+                                            add_unit_energy(sel_unit_id, e_code, beam_type_str, nom_mv, dmx, t_idx, p_10)
+                                            save_reference_beam_data(
+                                                unit_name=sel_unit_name,
+                                                energy=e_code,
+                                                beam_type=beam_type_str,
+                                                curve_type="PDD",
+                                                field_size_nominal=flsz_nom,
+                                                curve_data_json=c_json,
+                                                unit_id=sel_unit_id,
+                                                depth_mm=0.0,
+                                                ssd_cm=100.0,
+                                                tpr20_10=t_idx,
+                                                pdd_10=p_10,
+                                                pdd_20=p_20,
+                                                d_max_mm=dmx,
+                                            )
+                                            imported_pdds.append((e_code, dmx, t_idx, p_10))
+                                        else:
+                                            prof_calc = bpa.analyze_beam_profile(c_x, c_y, beam_type=beam_type_str)
+                                            f_width = prof_calc.get("field_width_mm")
+                                            cax_dev = prof_calc.get("cax_offset_mm")
+                                            p_l = prof_calc.get("penumbra_left_mm")
+                                            p_r = prof_calc.get("penumbra_right_mm")
+                                            flt = prof_calc.get("flatness_iec_pct", 0.0)
+                                            sym = prof_calc.get("symmetry_pct", 0.0)
+                                            dpth_mm = float(s_meta.get("depth_mm", 100.0))
+                                            save_reference_beam_data(
+                                                unit_name=sel_unit_name,
+                                                energy=e_code,
+                                                beam_type=beam_type_str,
+                                                curve_type="Profile",
+                                                field_size_nominal=flsz_nom,
+                                                curve_data_json=c_json,
+                                                unit_id=sel_unit_id,
+                                                depth_mm=dpth_mm,
+                                                ssd_cm=100.0,
+                                                field_width_mm=f_width,
+                                                cax_offset_mm=cax_dev,
+                                                penumbra_left_mm=p_l,
+                                                penumbra_right_mm=p_r,
+                                                flatness_pct=flt,
+                                                symmetry_pct=sym,
+                                            )
+                                            imported_profs.append((e_code, flsz_nom, f_width, sym))
+                                except Exception as err:
+                                    st.warning(f"Could not parse `{fname}`: {err}")
+                                progress_bar.progress((idx + 1) / len(raw_files))
+
+                            dump_database_to_file("qa_data_dump.sql")
+                            st.success(
+                                f"🎉 Successfully imported **{len(imported_pdds)}** PDD baselines and **{len(imported_profs)}** Golden Profiles for **{sel_unit_name}**!"
+                            )
+                            st.rerun()
+
+            # Option B: Single File Uploader
             ref_file = st.file_uploader(
-                f"Choose beam data file for {sel_unit_name}",
-                type=["mcc", "csv", "tsv", "txt", "asc", "dat", "xlsx", "xls"],
+                f"Or upload individual beam data file for {sel_unit_name} (with or without extension)",
+                type=None,
+                help="Accepts Varian Eclipse W2CAD, PTW BeamScan MCC, CSV, TSV, ASCII, or Excel files.",
                 key=f"ref_uploader_{sel_unit_id}",
             )
 
@@ -1259,6 +1410,65 @@ def page_admin():
                     st.success(f"✅ **{sel_test_name}** is now assigned to **{sel_unit_name}**.")
                 except Exception as e:
                     st.error(f"Error creating assignment: {e}")
+
+    # ── Tab 5: Database Export & Backup ──────────────────────────────────
+    with tab_db:
+        st.subheader("💾 Hospital Database Export & Versioning")
+        st.caption(
+            "Export, backup, and sync your clinical configuration (Linacs, chambers, golden beam data, and calibrations) "
+            "for tracking on the private hospital repository."
+        )
+
+        # Statistics overview
+        u_count = len(get_units())
+        c_count = len(get_ion_chambers(active_only=False))
+        en_count = len(get_unit_energies())
+        ref_df = get_reference_beam_data()
+        ref_count = len(ref_df) if not ref_df.empty else 0
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Registered Linacs", u_count)
+        m2.metric("Ion Chambers", c_count)
+        m3.metric("Configured Energies", en_count)
+        m4.metric("Golden Baselines", ref_count)
+
+        st.markdown("---")
+        st.markdown("##### 📦 Export Options")
+
+        col_exp1, col_exp2 = st.columns(2)
+        with col_exp1:
+            st.markdown("**1. SQLite Binary (`qa_data.db`)**")
+            st.caption("Direct binary database file. Portable and ready to drop into any QA Suite instance.")
+            if os.path.exists("qa_data.db"):
+                with open("qa_data.db", "rb") as f_db:
+                    db_bytes = f_db.read()
+                st.download_button(
+                    "⬇️ Download qa_data.db",
+                    data=db_bytes,
+                    file_name=f"qa_data_{date.today().isoformat()}.db",
+                    mime="application/x-sqlite3",
+                    use_container_width=True,
+                )
+            else:
+                st.info("qa_data.db does not exist yet.")
+
+        with col_exp2:
+            st.markdown("**2. ASCII SQL Script (`qa_data_dump.sql`)**")
+            st.caption("Human-readable SQL schema and data dump. Ideal for clean Git diffs.")
+            sql_dump = export_database_sql()
+            st.download_button(
+                "⬇️ Download qa_data_dump.sql",
+                data=sql_dump,
+                file_name=f"qa_data_dump_{date.today().isoformat()}.sql",
+                mime="text/plain",
+                use_container_width=True,
+            )
+
+        st.markdown("---")
+        if st.button("⚡ Save Fresh Export Dump to Workspace (`qa_data_dump.sql`)", type="primary", use_container_width=True):
+            dump_database_to_file("qa_data_dump.sql")
+            st.success("✅ Successfully refreshed `qa_data_dump.sql` on disk. Ready for Git commit.")
+
 
 
 # ===========================================================================

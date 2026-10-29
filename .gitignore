@@ -45,6 +45,7 @@ qa_data.db
 *.db
 *.sqlite
 *.sqlite3
+*.sql
 
 # Generated PDF reports and temporary outputs
 *.pdf

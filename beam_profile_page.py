@@ -404,8 +404,9 @@ def render_beam_profile_page() -> None:
                 ref_depth_val = st.number_input("Measurement Depth (mm)", value=100.0, step=10.0, key="ref_upload_depth")
 
             ref_file = st.file_uploader(
-                "Upload Reference Scan (PTW BeamScan .mcc, CSV, TSV, ASCII, or Excel .xlsx)",
-                type=["mcc", "csv", "tsv", "txt", "asc", "dat", "xlsx", "xls"],
+                "Upload Reference Scan (Varian Eclipse W2CAD, PTW BeamScan .mcc, CSV, TSV, ASCII, or Excel .xlsx)",
+                type=None,
+                help="Accepts files with or without extensions.",
                 key="ref_beam_uploader",
             )
 
@@ -590,8 +591,9 @@ def render_beam_profile_page() -> None:
         # File Upload Mode
         with source_col2:
             uploaded_file = st.file_uploader(
-                "Upload Profile (PTW BeamScan .mcc, CSV, TSV, ASCII, or DICOM .dcm)",
-                type=["mcc", "csv", "tsv", "txt", "asc", "dat", "dcm", "xlsx", "xls"],
+                "Upload Profile (Varian W2CAD, PTW BeamScan .mcc, CSV, TSV, ASCII, or DICOM .dcm)",
+                type=None,
+                help="Accepts files with or without extensions.",
                 key="bp_file_uploader",
             )
 

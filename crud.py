@@ -840,3 +840,22 @@ def delete_unit_energy(energy_id: int) -> bool:
         return cur.rowcount > 0
 
 
+# ---------------------------------------------------------------------------
+# Database Export & Backup
+# ---------------------------------------------------------------------------
+
+def export_database_sql() -> str:
+    """Exports the entire SQLite database as an ASCII SQL dump string."""
+    with get_connection() as conn:
+        return "\n".join(conn.iterdump())
+
+
+def dump_database_to_file(filepath: str = "qa_data_dump.sql") -> str:
+    """Writes the full database SQL dump to disk."""
+    dump_text = export_database_sql()
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(dump_text)
+    return filepath
+
+
+

@@ -273,6 +273,141 @@ def _try_parse_ptw_mcc_scans(content: str) -> Optional[Dict[str, Any]]:
     }
 
 
+def _try_parse_varian_w2cad(content: str) -> Optional[Dict[str, Any]]:
+    """
+    Parse Varian Eclipse W2CAD beam data export files ($STOM ... $ENOM / $ENOF).
+    Extracts OPD (Open Field Depth Dose / PDD) and OPP (Open Field Profile) curves.
+    """
+    lines = content.splitlines()
+    global_meta: Dict[str, str] = {}
+    for l in lines[:30]:
+        l_str = l.strip()
+        if l_str.startswith("#"):
+            if "machine:" in l_str:
+                global_meta["machine"] = l_str.split("machine:")[1].strip()
+            elif "algorithm:" in l_str:
+                global_meta["algorithm"] = l_str.split("algorithm:")[1].strip()
+            elif "beam data:" in l_str:
+                global_meta["beam_data"] = l_str.split("beam data:")[1].strip()
+        elif l_str.startswith("%") and not l_str.startswith("%TYPE"):
+            parts = l_str.split(None, 1)
+            if len(parts) == 2:
+                global_meta[parts[0][1:].upper()] = parts[1]
+
+    profiles = {}
+    primary = None
+
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if line.startswith("%TYPE"):
+            type_val = line.split()[1].upper()
+            meta = dict(global_meta)
+            meta["TYPE"] = type_val
+            j = i + 1
+            pts = []
+            while j < len(lines):
+                l = lines[j].strip()
+                if l.startswith("%"):
+                    parts = l.split(None, 1)
+                    if len(parts) == 2:
+                        meta[parts[0][1:].upper()] = parts[1]
+                elif l.startswith("<") and l.endswith(">"):
+                    nums = [float(x) for x in re.findall(r"[-+]?[0-9]*\.?[0-9]+", l)]
+                    if len(nums) >= 4:
+                        pts.append(nums[:4])
+                elif l.startswith("$ENOM") or (l.startswith("%TYPE") and pts):
+                    break
+                j += 1
+
+            if pts:
+                arr = np.array(pts)
+                is_pdd = (type_val == "OPD") or ("DEPTH" in meta.get("machine", "").upper())
+
+                if is_pdd:
+                    # Column 2 (Z) is depth in mm, Column 3 is relative dose (%)
+                    coords = arr[:, 2]
+                    doses = arr[:, 3]
+                    axis_name = "PDD (Z)"
+                else:
+                    # Column 0 (X) is off-axis position in mm, Column 3 is relative dose (%)
+                    var_x = float(np.ptp(arr[:, 0]))
+                    var_y = float(np.ptp(arr[:, 1]))
+                    if var_y > var_x:
+                        coords = arr[:, 1]
+                        axis_name = "Inplane (Y)"
+                    else:
+                        coords = arr[:, 0]
+                        axis_name = "Crossplane (X)"
+                    doses = arr[:, 3]
+
+                sort_idx = np.argsort(coords)
+                x_mm = coords[sort_idx]
+                y_vals = doses[sort_idx]
+
+                flsz_str = meta.get("FLSZ", "100*100").replace("*", "x")
+                dpth_val = meta.get("DPTH", "0")
+                energy_raw = meta.get("ENERGY", "6.0")
+                mach_str = meta.get("machine", "")
+
+                is_fff = False
+                if "10X-FFF" in mach_str.upper() or "10FFF" in mach_str.upper():
+                    energy_label = "10 MV FFF"
+                    is_fff = True
+                elif "6X-FFF" in mach_str.upper() or "6FFF" in mach_str.upper():
+                    energy_label = "6 MV FFF"
+                    is_fff = True
+                elif "15X" in mach_str.upper() or "15" in energy_raw:
+                    energy_label = "15 MV"
+                elif "10X" in mach_str.upper() or "10" in energy_raw:
+                    energy_label = "10 MV"
+                elif "6X" in mach_str.upper() or "6" in energy_raw:
+                    energy_label = "6 MV"
+                else:
+                    try:
+                        energy_num = float(energy_raw)
+                        energy_label = f"{energy_num:.0f} MV"
+                    except Exception:
+                        energy_label = f"{energy_raw} MV"
+                    if "FFF" in mach_str.upper() or "FFF" in energy_raw.upper():
+                        is_fff = True
+                        if "FFF" not in energy_label:
+                            energy_label += " FFF"
+
+                label = f"{axis_name} - {flsz_str} d={dpth_val}mm ({energy_label})"
+                scan_meta = {
+                    "data_source": "Varian Eclipse W2CAD",
+                    "beam_type": "FFF" if is_fff else "Flattened",
+                    "axis": axis_name,
+                    "field_size_nominal": f"{flsz_str} mm",
+                    "energy": energy_label,
+                    "unit_name": mach_str or "Varian TrueBeam",
+                    "depth_mm": str(dpth_val),
+                    "unit": "mm",
+                    "is_fff": is_fff,
+                    "is_pdd": is_pdd,
+                }
+                prof_entry = {"x_mm": x_mm, "values": y_vals, "meta": scan_meta}
+                profiles[label] = prof_entry
+
+                if primary is None:
+                    primary = prof_entry
+                elif "100x100" in flsz_str:
+                    primary = prof_entry
+            i = j - 1
+        i += 1
+
+    if not profiles or primary is None:
+        return None
+
+    return {
+        "x_mm": primary["x_mm"],
+        "values": primary["values"],
+        "meta": primary["meta"],
+        "profiles": profiles,
+    }
+
+
 def parse_profile_text(content: Union[str, bytes]) -> Dict[str, Any]:
     """
     Universally parse 1D and 2D beam profile exports from ASCII, CSV, TSV,
@@ -303,6 +438,12 @@ def parse_profile_text(content: Union[str, bytes]) -> Dict[str, Any]:
         mcc_res = _try_parse_ptw_mcc_scans(content)
         if mcc_res is not None:
             return mcc_res
+
+    # Check for Varian Eclipse W2CAD format ($STOM ... %TYPE OPD / %TYPE OPP ... <X Y Z Dose>)
+    if any(marker in content.upper() for marker in ("$STOM", "%TYPE OPD", "%TYPE OPP", "$NUMS")):
+        w2cad_res = _try_parse_varian_w2cad(content)
+        if w2cad_res is not None:
+            return w2cad_res
 
     lines = [ln.strip() for ln in content.splitlines()]
 
