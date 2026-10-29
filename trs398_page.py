@@ -160,12 +160,17 @@ def _build_kq_curve(chamber_key: str, active_tpr: float, active_kq: float) -> go
     fig.add_vline(x=active_tpr, line=dict(color="#ef4444", width=1.5, dash="dash"))
     fig.add_hline(y=active_kq, line=dict(color="#ef4444", width=1.5, dash="dash"))
 
+    is_dark = st.session_state.get("app_theme_dark", True) if "app_theme_dark" in st.session_state else True
+    plot_template = "plotly_dark" if is_dark else "plotly_white"
+    grid_col = "rgba(255, 255, 255, 0.08)" if is_dark else "#e8edf3"
+
     fig.update_layout(
+        template=plot_template,
         title=dict(text=f"<b>Beam Quality Factor k_Q vs TPR₂₀,₁₀</b> — {resolved.split('(')[0].strip()}", font=dict(size=15)),
-        xaxis_title="Beam Quality Index (TPR₂₀,₁₀)",
-        yaxis_title="k_Q,Q₀ Factor",
-        plot_bgcolor="#fafcff",
-        paper_bgcolor="#ffffff",
+        xaxis=dict(title="Beam Quality Index (TPR₂₀,₁₀)", gridcolor=grid_col),
+        yaxis=dict(title="k_Q,Q₀ Factor", gridcolor=grid_col),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
         height=320,
         margin=dict(l=50, r=30, t=50, b=40),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
@@ -765,7 +770,14 @@ def _history_tab() -> None:
             marker=dict(size=8, color="#0284c7"),
         ))
         fig_trend.add_hline(y=1.000, line=dict(color="#10b981", width=2, dash="dash"), annotation_text="Nominal Target 1.000 cGy/MU")
-        fig_trend.update_layout(height=300, margin=dict(l=40, r=20, t=30, b=40), plot_bgcolor="#fafcff")
+        is_dark = st.session_state.get("app_theme_dark", True) if "app_theme_dark" in st.session_state else True
+        fig_trend.update_layout(
+            template="plotly_dark" if is_dark else "plotly_white",
+            height=300,
+            margin=dict(l=40, r=20, t=30, b=40),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
         st.plotly_chart(fig_trend, use_container_width=True)
 
     csv = logs.to_csv(index=False).encode("utf-8")

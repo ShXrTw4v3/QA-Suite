@@ -191,12 +191,18 @@ def _build_1d_profile_figure(
             annotation_font=dict(size=10, color="#be123c"),
         )
 
+    is_dark = st.session_state.get("app_theme_dark", True) if "app_theme_dark" in st.session_state else True
+    plot_template = "plotly_dark" if is_dark else "plotly_white"
+    grid_col = "rgba(255, 255, 255, 0.08)" if is_dark else "#e2e8f0"
+    zero_col = "rgba(255, 255, 255, 0.2)" if is_dark else "#94a3b8"
+
     fig.update_layout(
+        template=plot_template,
         title=f"<b>{beam_title}</b> — Quantitative Overlay",
-        xaxis=dict(title="Cross-Beam Distance from Central Axis (mm)", gridcolor="#e2e8f0", zeroline=True, zerolinecolor="#94a3b8"),
-        yaxis=dict(title="Relative Dose (%)", gridcolor="#e2e8f0", range=[0, max(115.0, float(np.max(values)) + 5)]),
-        plot_bgcolor="#f8fafc",
-        paper_bgcolor="#ffffff",
+        xaxis=dict(title="Cross-Beam Distance from Central Axis (mm)", gridcolor=grid_col, zeroline=True, zerolinecolor=zero_col),
+        yaxis=dict(title="Relative Dose (%)", gridcolor=grid_col, range=[0, max(115.0, float(np.max(values)) + 5)]),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=60, r=40, t=60, b=50),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         hovermode="x unified",
@@ -297,16 +303,21 @@ def _build_folded_symmetry_figure(
     fig.add_hline(y=-1.5, line=dict(color="#f59e0b", width=1, dash="dot"), row=2, col=1)
     fig.add_hline(y=0.0, line=dict(color="#94a3b8", width=1), row=2, col=1)
 
+    is_dark = st.session_state.get("app_theme_dark", True) if "app_theme_dark" in st.session_state else True
+    plot_template = "plotly_dark" if is_dark else "plotly_white"
+    grid_col = "rgba(255, 255, 255, 0.08)" if is_dark else "#e2e8f0"
+
     fig.update_layout(
-        plot_bgcolor="#f8fafc",
-        paper_bgcolor="#ffffff",
+        template=plot_template,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=60, r=40, t=50, b=40),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         hovermode="x unified",
     )
-    fig.update_xaxes(title_text="Off-Axis Radial Distance |x| (mm)", row=2, col=1, gridcolor="#e2e8f0")
-    fig.update_yaxes(title_text="Relative Dose (%)", row=1, col=1, gridcolor="#e2e8f0")
-    fig.update_yaxes(title_text="Dose Diff (%)", row=2, col=1, gridcolor="#e2e8f0", range=[-4.0, 4.0])
+    fig.update_xaxes(title_text="Off-Axis Radial Distance |x| (mm)", row=2, col=1, gridcolor=grid_col)
+    fig.update_yaxes(title_text="Relative Dose (%)", row=1, col=1, gridcolor=grid_col)
+    fig.update_yaxes(title_text="Dose Diff (%)", row=2, col=1, gridcolor=grid_col, range=[-4.0, 4.0])
 
     return fig
 
@@ -337,13 +348,15 @@ def _build_2d_fluence_figure(image_2d: np.ndarray, pixel_spacing_iso: Tuple[floa
     fig.add_vline(x=0.0, line=dict(color="rgba(255, 255, 255, 0.7)", width=1, dash="dash"))
     fig.add_hline(y=0.0, line=dict(color="rgba(255, 255, 255, 0.7)", width=1, dash="dash"))
 
+    is_dark = st.session_state.get("app_theme_dark", True) if "app_theme_dark" in st.session_state else True
     fig.update_layout(
+        template="plotly_dark" if is_dark else "plotly_white",
         title="<b>2D Calibrated EPID Fluence Map</b> (Scaled to Isocenter)",
         xaxis=dict(title="Crossplane X (mm)", zeroline=False),
         yaxis=dict(title="Inplane Y (mm)", scaleanchor="x", scaleratio=1, zeroline=False),
         margin=dict(l=60, r=40, t=50, b=40),
-        plot_bgcolor="#0f172a",
-        paper_bgcolor="#ffffff",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
     )
     return fig
 

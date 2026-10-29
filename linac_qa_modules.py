@@ -327,14 +327,28 @@ def scan_folder(
 # Plot helpers
 # ─────────────────────────────────────────────────────────────────────────────
 def clinical_layout(fig: go.Figure, title: str = "") -> go.Figure:
+    is_dark = True
+    try:
+        import streamlit as st
+        is_dark = st.session_state.get("app_theme_dark", True)
+    except Exception:
+        pass
+
+    plot_template = "plotly_dark" if is_dark else "plotly_white"
+    grid_col = "rgba(255, 255, 255, 0.08)" if is_dark else "#e8edf3"
+    font_col = "#f1f5f9" if is_dark else "#1b263b"
+    legend_bg = "rgba(19, 31, 55, 0.85)" if is_dark else "#f0f4f8"
+    legend_border = "rgba(56, 189, 248, 0.2)" if is_dark else "#e8edf3"
+
     fig.update_layout(
-        paper_bgcolor="#ffffff",
-        plot_bgcolor="#fafcff",
-        font=dict(color="#1b263b"),
-        title=dict(text=f"<b>{title}</b>", font=dict(color="#1b263b", size=15)),
-        legend=dict(bgcolor="#f0f4f8", bordercolor="#e8edf3"),
-        xaxis=dict(gridcolor="#e8edf3"),
-        yaxis=dict(gridcolor="#e8edf3"),
+        template=plot_template,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=font_col),
+        title=dict(text=f"<b>{title}</b>", font=dict(color=font_col, size=15)),
+        legend=dict(bgcolor=legend_bg, bordercolor=legend_border),
+        xaxis=dict(gridcolor=grid_col),
+        yaxis=dict(gridcolor=grid_col),
     )
     return fig
 
@@ -492,23 +506,37 @@ def gravity_sag_polar(gantry_a: np.ndarray, mlc_e: np.ndarray) -> go.Figure:
                 showlegend=False,
             )
         )
+    is_dark = True
+    try:
+        import streamlit as st
+        is_dark = st.session_state.get("app_theme_dark", True)
+    except Exception:
+        pass
+    polar_bg = "rgba(19, 31, 55, 0.5)" if is_dark else "#fafcff"
+    grid_col = "rgba(255, 255, 255, 0.1)" if is_dark else "#e8edf3"
+    tick_col = "#94a3b8" if is_dark else "#415a77"
+    font_col = "#f1f5f9" if is_dark else "#1b263b"
+    legend_bg = "rgba(19, 31, 55, 0.85)" if is_dark else "#f0f4f8"
+    legend_border = "rgba(56, 189, 248, 0.2)" if is_dark else "#e8edf3"
+
     fig.update_layout(
+        template="plotly_dark" if is_dark else "plotly_white",
         polar=dict(
-            bgcolor="#fafcff",
-            radialaxis=dict(tickfont=dict(color="#415a77"), gridcolor="#e8edf3"),
+            bgcolor=polar_bg,
+            radialaxis=dict(tickfont=dict(color=tick_col), gridcolor=grid_col),
             angularaxis=dict(
-                tickfont=dict(color="#415a77"),
-                gridcolor="#e8edf3",
+                tickfont=dict(color=tick_col),
+                gridcolor=grid_col,
                 direction="clockwise",
                 rotation=90,
             ),
         ),
-        paper_bgcolor="#ffffff",
-        font=dict(color="#1b263b"),
-        legend=dict(bgcolor="#f0f4f8", bordercolor="#e8edf3"),
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=font_col),
+        legend=dict(bgcolor=legend_bg, bordercolor=legend_border),
         title=dict(
             text="<b>🌍 Gravity Sag — MLC Error vs. Gantry Angle</b>",
-            font=dict(color="#1b263b", size=15),
+            font=dict(color=font_col, size=15),
         ),
     )
     return fig

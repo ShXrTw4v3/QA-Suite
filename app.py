@@ -76,66 +76,14 @@ st.set_page_config(
 
 
 # ===========================================================================
-# Custom CSS — clean, clinical look
-# ===========================================================================
-st.markdown(
-    """
-    <style>
-        /* ── Global ── */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-
-        /* ── Sidebar ── */
-        [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #0d1b2a 0%, #1b263b 100%);
-        }
-        [data-testid="stSidebar"] * { color: #e0e6f0 !important; }
-        [data-testid="stSidebar"] .stRadio label { font-size: 0.95rem; padding: 4px 0; }
-
-        /* ── Metric cards ── */
-        [data-testid="metric-container"] {
-            background: #f0f4f8;
-            border-radius: 10px;
-            padding: 16px 20px;
-            border-left: 4px solid #415a77;
-        }
-
-        /* ── Status badges ── */
-        .badge-ok       { color:#fff; background:#2d9e5f; padding:3px 10px; border-radius:12px; font-size:0.82rem; font-weight:600; }
-        .badge-tol      { color:#fff; background:#e58b00; padding:3px 10px; border-radius:12px; font-size:0.82rem; font-weight:600; }
-        .badge-action   { color:#fff; background:#c0392b; padding:3px 10px; border-radius:12px; font-size:0.82rem; font-weight:600; }
-
-        /* ── Section headers ── */
-        .section-header {
-            font-size: 1.5rem; font-weight: 700; color: #1b263b;
-            margin-bottom: 1rem; border-bottom: 2px solid #415a77; padding-bottom: 6px;
-        }
-
-        /* ── Data table tweaks ── */
-        .stDataFrame { border-radius: 8px; overflow: hidden; }
-
-        /* ── Form inputs ── */
-        textarea, input[type="text"], input[type="number"] { border-radius: 6px !important; }
-
-        /* ── Status alert box ── */
-        .status-box {
-            padding: 12px 18px; border-radius: 8px; font-size: 1rem;
-            font-weight: 600; margin-top: 12px;
-        }
-        .status-ok     { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
-        .status-tol    { background:#fff3cd; color:#856404; border:1px solid #ffc107; }
-        .status-action { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-# ===========================================================================
-# Sidebar Navigation
+# Sidebar Navigation & Theme Control
 # ===========================================================================
 with st.sidebar:
     st.markdown("## ⚕️ Micro QA Suite")
+
+    # Dark / Light Mode Toggle
+    is_dark = st.toggle("🌙 Dark Mode", value=True, key="app_theme_dark")
+
     st.markdown("---")
     page = st.radio(
         "Navigation",
@@ -155,7 +103,137 @@ with st.sidebar:
         label_visibility="collapsed",
     )
     st.markdown("---")
-    st.caption("v2.1.0 — Full Linac & TRS-398 QA Suite")
+    st.caption("v2.2.0 — Full Linac & TRS-398 QA Suite")
+
+
+# ===========================================================================
+# Dynamic Theme CSS (Dark / Light)
+# ===========================================================================
+if is_dark:
+    theme_css = """
+    <style>
+        /* ── Global Typography & Dark Base ── */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
+        .stApp {
+            background-color: #0b1329 !important;
+            color: #f1f5f9 !important;
+        }
+
+        /* ── Sidebar ── */
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #070d1d 0%, #0f172a 100%) !important;
+            border-right: 1px solid #1e293b !important;
+        }
+        [data-testid="stSidebar"] * { color: #cbd5e1 !important; }
+        [data-testid="stSidebar"] .stRadio label { font-size: 0.95rem; padding: 4px 0; }
+
+        /* ── Metric Cards ── */
+        [data-testid="metric-container"] {
+            background: #131f37 !important;
+            border: 1px solid #233554 !important;
+            border-left: 4px solid #38bdf8 !important;
+            border-radius: 10px;
+            padding: 16px 20px;
+        }
+        [data-testid="stMetricValue"] {
+            color: #f8fafc !important;
+        }
+        [data-testid="stMetricLabel"] {
+            color: #94a3b8 !important;
+        }
+
+        /* ── Status Badges ── */
+        .badge-ok       { color:#fff; background:#059669; padding:3px 10px; border-radius:12px; font-size:0.82rem; font-weight:600; }
+        .badge-tol      { color:#fff; background:#d97706; padding:3px 10px; border-radius:12px; font-size:0.82rem; font-weight:600; }
+        .badge-action   { color:#fff; background:#dc2626; padding:3px 10px; border-radius:12px; font-size:0.82rem; font-weight:600; }
+
+        /* ── Section Headers ── */
+        .section-header {
+            font-size: 1.5rem; font-weight: 700; color: #38bdf8 !important;
+            margin-bottom: 1rem; border-bottom: 2px solid #233554 !important; padding-bottom: 6px;
+        }
+
+        /* ── Data Tables ── */
+        .stDataFrame { border-radius: 8px; overflow: hidden; }
+
+        /* ── Form Inputs & Textareas ── */
+        textarea, input[type="text"], input[type="number"] {
+            border-radius: 6px !important;
+            background-color: #131f37 !important;
+            border: 1px solid #233554 !important;
+            color: #f8fafc !important;
+        }
+
+        /* ── Status Alert Boxes ── */
+        .status-box {
+            padding: 12px 18px; border-radius: 8px; font-size: 1rem;
+            font-weight: 600; margin-top: 12px;
+        }
+        .status-ok     { background:#064e3b !important; color:#a7f3d0 !important; border:1px solid #059669 !important; }
+        .status-tol    { background:#78350f !important; color:#fde68a !important; border:1px solid #d97706 !important; }
+        .status-action { background:#7f1d1d !important; color:#fecaca !important; border:1px solid #dc2626 !important; }
+
+        /* ── Expanders ── */
+        div[data-testid="stExpander"] {
+            background-color: #131f37 !important;
+            border: 1px solid #233554 !important;
+            border-radius: 8px !important;
+        }
+
+        /* ── Tabs ── */
+        button[data-baseweb="tab"] {
+            color: #94a3b8 !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: #38bdf8 !important;
+            border-bottom-color: #38bdf8 !important;
+        }
+    </style>
+    """
+else:
+    theme_css = """
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #0d1b2a 0%, #1b263b 100%);
+        }
+        [data-testid="stSidebar"] * { color: #e0e6f0 !important; }
+        [data-testid="stSidebar"] .stRadio label { font-size: 0.95rem; padding: 4px 0; }
+
+        [data-testid="metric-container"] {
+            background: #f0f4f8;
+            border-radius: 10px;
+            padding: 16px 20px;
+            border-left: 4px solid #415a77;
+        }
+
+        .badge-ok       { color:#fff; background:#2d9e5f; padding:3px 10px; border-radius:12px; font-size:0.82rem; font-weight:600; }
+        .badge-tol      { color:#fff; background:#e58b00; padding:3px 10px; border-radius:12px; font-size:0.82rem; font-weight:600; }
+        .badge-action   { color:#fff; background:#c0392b; padding:3px 10px; border-radius:12px; font-size:0.82rem; font-weight:600; }
+
+        .section-header {
+            font-size: 1.5rem; font-weight: 700; color: #1b263b;
+            margin-bottom: 1rem; border-bottom: 2px solid #415a77; padding-bottom: 6px;
+        }
+
+        .stDataFrame { border-radius: 8px; overflow: hidden; }
+        textarea, input[type="text"], input[type="number"] { border-radius: 6px !important; }
+
+        .status-box {
+            padding: 12px 18px; border-radius: 8px; font-size: 1rem;
+            font-weight: 600; margin-top: 12px;
+        }
+        .status-ok     { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+        .status-tol    { background:#fff3cd; color:#856404; border:1px solid #ffc107; }
+        .status-action { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+    </style>
+    """
+st.markdown(theme_css, unsafe_allow_html=True)
+
 
 
 # ===========================================================================
@@ -241,19 +319,24 @@ def build_control_chart(df: pd.DataFrame, test: dict) -> go.Figure:
                       annotation_font_color="#c0392b")
 
     unit_label = test.get("unit_of_measure") or ""
+    is_dark = st.session_state.get("app_theme_dark", True)
+    plot_template = "plotly_dark" if is_dark else "plotly_white"
+    grid_col = "rgba(255, 255, 255, 0.08)" if is_dark else "#e8edf3"
+
     fig.update_layout(
+        template=plot_template,
         title=dict(text=f"<b>{test['name']}</b> — Control Chart", font=dict(size=18)),
         xaxis_title="Date / Time",
         yaxis_title=f"Value ({unit_label})" if unit_label else "Value",
-        plot_bgcolor="#fafcff",
-        paper_bgcolor="#ffffff",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         hovermode="x unified",
         margin=dict(l=60, r=40, t=80, b=60),
         height=480,
     )
-    fig.update_xaxes(showgrid=True, gridcolor="#e8edf3")
-    fig.update_yaxes(showgrid=True, gridcolor="#e8edf3")
+    fig.update_xaxes(showgrid=True, gridcolor=grid_col)
+    fig.update_yaxes(showgrid=True, gridcolor=grid_col)
 
     return fig
 
