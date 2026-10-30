@@ -40,12 +40,11 @@ venv.bak/
 htmlcov/
 .mpl_cache/
 
-# Local SQLite databases (prevent clinical PHI / local log commits)
-qa_data.db
-*.db
+# Local SQLite databases (clean template database qa_data.db is tracked)
 *.sqlite
 *.sqlite3
-*.sql
+qa_data_hospital.db
+qa_data_dump_hospital.sql
 
 # Generated PDF reports and temporary outputs
 *.pdf

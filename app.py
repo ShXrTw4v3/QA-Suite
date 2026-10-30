@@ -46,6 +46,7 @@ from crud import (
 # Chamber & Certificate Parser
 import chamber_manager as cm
 import beam_profile_analyzer as bpa
+import trs398_calculator as tc
 
 # TRS-398 Reference Calibration (Enhanced Dual Engine: Pure-Python + Pylinac)
 from trs398_page import page_trs398
@@ -1206,6 +1207,39 @@ def page_admin():
             "(PTW-Freiburg SSDL, IAEA Dosimetry Laboratory, IBA, Standard Imaging ADCL, NIST). "
             "Calibration factors (N_D,w) are automatically parsed, normalized to cGy/nC, and registered for IAEA TRS-398 reference dosimetry."
         )
+
+        # Batch JSON Importer
+        with st.expander("📁 Batch Import Chambers from JSON Database Backup", expanded=False):
+            st.caption("Import chamber names, serial numbers, and $N_{D,w}$ calibration factors from a TRS-398 chamber backup JSON file.")
+            ch_json_file = st.file_uploader("Upload Chamber Database JSON", type=["json"], key="ch_json_backup_uploader")
+            if ch_json_file is not None:
+                if st.button("🚀 Import Chambers from JSON", key="btn_import_ch_json", type="primary"):
+                    try:
+                        ch_data = json.loads(ch_json_file.getvalue().decode("utf-8"))
+                        imp_count = 0
+                        for c in ch_data:
+                            raw_name = c.get("name", "").strip()
+                            sn = str(c.get("serialNumber", "")).strip()
+                            ndw_gy = float(c.get("ndw", 0.0))
+                            ndw_cgy = ndw_gy * 100.0
+                            matched = tc.find_chamber_key(raw_name) if hasattr(tc, "find_chamber_key") else raw_name
+                            add_ion_chamber(
+                                model=matched,
+                                serial_no=sn,
+                                ndw_cgy=ndw_cgy,
+                                user_label=f"{raw_name} (S/N {sn})",
+                                cal_date=str(date.today()),
+                                cal_lab="SSDL / Accredited Lab",
+                                cert_id=f"CAL-Co60-{sn}",
+                                ref_quality="Co-60",
+                                notes="Imported from JSON chamber backup.",
+                            )
+                            imp_count += 1
+                        dump_database_to_file("qa_data_dump.sql")
+                        st.success(f"🎉 Successfully imported {imp_count} chambers into the registry!")
+                        st.rerun()
+                    except Exception as j_err:
+                        st.error(f"Error parsing chamber JSON: {j_err}")
 
         cert_file = st.file_uploader(
             "Upload Chamber Calibration Certificate (PDF or Image)",

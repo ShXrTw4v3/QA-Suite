@@ -324,10 +324,27 @@ PRESET_CONFIGS: Dict[str, Dict[str, Any]] = {
 
 def find_chamber_key(query: str) -> str:
     """Finds matching photon chamber key from partial query string."""
-    query_lower = query.lower()
+    query_clean = query.lower().strip()
+    # 1. Exact substring match
     for key in KQ_PHOTON_CHAMBERS:
-        if query_lower in key.lower():
+        if query_clean in key.lower():
             return key
+
+    # 2. Token / model matching (e.g. "fc65-g", "30013", "cc13", "31010")
+    import re
+    tokens = [t for t in re.split(r"[\s\-_/]+", query_clean) if len(t) > 1]
+    best_key = None
+    best_matches = 0
+    for key in KQ_PHOTON_CHAMBERS:
+        key_lower = key.lower()
+        matches = sum(1 for t in tokens if t in key_lower)
+        if matches > best_matches:
+            best_matches = matches
+            best_key = key
+
+    if best_key and best_matches >= max(1, len(tokens) - 1):
+        return best_key
+
     return "PTW 30013 Farmer (0.60 cm³, waterproof)"
 
 
