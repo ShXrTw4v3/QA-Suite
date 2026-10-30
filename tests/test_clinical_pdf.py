@@ -193,7 +193,7 @@ def standard_unit_meta():
         "unit_name": "Varian TrueBeam #1 (Vault 1)",
         "modality": "Medical Linear Accelerator (LINAC)",
         "serial_no": "SN-TB-001",
-        "physicist": "Dr. Nemanja Golubovac, PhD, DABR",
+        "physicist": "Staff Medical Physicist, DABR",
         "reviewer": "Chief Clinical Medical Physicist",
     }
 
@@ -321,7 +321,7 @@ class TestClinicalReportStructure:
         # 4. Sign-off block
         assert "Performed By" in pdf_str
         assert "Reviewed & Approved By" in pdf_str
-        assert "Dr. Nemanja Golubovac" in pdf_str
+        assert "Staff Medical Physicist" in pdf_str
 
     def test_required_sections_in_beam_profile_pdf(self, sample_beam_profile_data, standard_unit_meta):
         """Verify Beam Profile PDF contains field width, penumbra, flatness, symmetry, and plots."""

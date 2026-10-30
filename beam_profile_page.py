@@ -813,7 +813,7 @@ def render_beam_profile_page() -> None:
             f_c1, f_c2 = st.columns(2)
             with f_c1:
                 sel_unit = st.selectbox("Treatment Unit / Linac", unit_names, key="bp_sel_unit")
-                physicist = st.text_input("Medical Physicist", value="Dr. Nemanja Golubovac, PhD", key="bp_physicist_name")
+                physicist = st.text_input("Medical Physicist", value="Medical Physicist", key="bp_physicist_name")
             with f_c2:
                 meas_date = st.date_input("QA Measurement Date", value=date.today(), key="bp_meas_date")
                 log_notes = st.text_input("Clinical Notes / Comments", value="Routine beam profile constancy check.", key="bp_log_notes")

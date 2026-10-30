@@ -168,7 +168,7 @@ class TestMultiTableCRUD:
             beam_type="photon",
             unit_name="Varian TrueBeam #1",
             institution="Medical Center",
-            physicist="Dr. Nemanja",
+            physicist="Medical Physicist",
             chamber="PTW 30013 Farmer",
             energy="6 MV",
             setup="SSD 100 cm, zref 10 cm",
@@ -231,7 +231,7 @@ class TestProfileQALogPersistence:
             unit_name="TrueBeam TB-1",
             unit_id=unit_id,
             institution="Department of Medical Physics",
-            physicist="Dr. N. Golubovac",
+            physicist="Medical Physicist",
             beam_energy="6 MV",
             beam_type="Flattened",
             protocol="IEC 60976",
@@ -263,7 +263,7 @@ class TestProfileQALogPersistence:
         # Retrieve by unit DataFrame query
         df = crud.get_profile_qa_logs(unit_id=unit_id)
         assert len(df) == 1
-        assert df.iloc[0]["physicist"] == "Dr. N. Golubovac"
+        assert df.iloc[0]["physicist"] == "Medical Physicist"
 
     def test_profile_qa_save_and_retrieve_fff(self, temp_db):
         """

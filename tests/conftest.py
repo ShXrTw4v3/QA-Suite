@@ -106,7 +106,7 @@ def standard_dosimetry_inputs():
         "photon_6mv": {
             "unit_name": "Varian TrueBeam #1",
             "institution": "Radiotherapy Department",
-            "physicist": "Dr. N. Golubovac",
+            "physicist": "Medical Physicist",
             "beam_type": "photon",
             "energy": "6 MV",
             "is_fff": False,
@@ -128,7 +128,7 @@ def standard_dosimetry_inputs():
         "photon_6fff": {
             "unit_name": "Varian TrueBeam #1",
             "institution": "Radiotherapy Department",
-            "physicist": "Dr. N. Golubovac",
+            "physicist": "Medical Physicist",
             "beam_type": "photon",
             "energy": "6 MV FFF",
             "is_fff": True,
@@ -151,7 +151,7 @@ def standard_dosimetry_inputs():
         "electron_9mev": {
             "unit_name": "Varian TrueBeam #1",
             "institution": "Radiotherapy Department",
-            "physicist": "Dr. N. Golubovac",
+            "physicist": "Medical Physicist",
             "beam_type": "electron",
             "energy": "9 MeV",
             "chamber": "PTW 34001 Roos (0.35 cm³)",
